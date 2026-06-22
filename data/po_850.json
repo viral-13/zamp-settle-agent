@@ -1,0 +1,19 @@
+{
+  "_meta": "Synthetic. Parsed representation of an EDI 850 (Purchase Order). Structured -> parsed deterministically in Layer 1.",
+  "doc_type": "EDI_850_PO",
+  "po_number": "PO500123",
+  "buyer": "DCNORTH",
+  "supplier_id": "SUPPLIER4471",
+  "order_date": "2025-09-01",
+  "currency": "USD",
+  "lines": [
+    {
+      "line_no": 1,
+      "buyer_sku": "SKU-A",
+      "description": "SKU-A — 1L bottled product, 24/case",
+      "ordered_qty": 500,
+      "uom": "case",
+      "unit_price": 40.00
+    }
+  ]
+}

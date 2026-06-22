@@ -1,0 +1,180 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Settle Canonical Reconciliation Case",
+  "_meta": "One record per PO line. Layers 1-3 populate the factual fields deterministically; Layer 4 fills `discrepancies[].classification` via the LLM; Layer 5 fills `discrepancies[].decision` and `payable`.",
+  "type": "object",
+  "required": ["case_id", "po_line", "evidence", "discrepancies"],
+  "properties": {
+    "case_id": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["open", "reconciled", "concluded", "escalated"],
+      "default": "open"
+    },
+
+    "po_line": {
+      "type": "object",
+      "required": ["po_number", "sku", "ordered_qty", "unit_price", "currency"],
+      "properties": {
+        "po_number": { "type": "string" },
+        "sku": { "type": "string" },
+        "ordered_qty": { "type": "integer" },
+        "unit_price": { "type": "number" },
+        "currency": { "type": "string" }
+      }
+    },
+
+    "evidence": {
+      "type": "object",
+      "_meta": "The normalized facts pulled from each document. `source` records which doc each fact came from (for citations).",
+      "properties": {
+        "shipped_qty": { "type": "integer", "description": "from ASN 856" },
+        "pallets_shipped": { "type": "integer", "description": "from ASN 856" },
+        "pallets_delivered": { "type": "integer", "description": "from POD" },
+        "pod_shortage_noted": { "type": "boolean", "description": "from POD" },
+        "pod_damage_noted": { "type": "boolean", "description": "from POD" },
+        "pod_damage_detail": { "type": "string", "description": "from POD (LLM-extracted)" },
+        "received_good": { "type": "integer", "description": "from GRN" },
+        "received_damaged": { "type": "integer", "description": "from GRN" },
+        "received_short": { "type": "integer", "description": "from GRN (ordered - good - damaged)" }
+      }
+    },
+
+    "resolution": {
+      "type": "object",
+      "_meta": "Layer 2. Identity resolution + UoM cross-checks. The maintained config.supplier_mapping table is the source of truth; unconfirmed codes route to 'escalate' and are never auto-applied. All UoM math is deterministic.",
+      "properties": {
+        "item_mappings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "supplier_code": { "type": "string" },
+              "resolved_sku": { "type": ["string", "null"], "description": "null until confirmed in the mapping table" },
+              "method": { "type": "string", "enum": ["table", "unconfirmed"] },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "routing": { "type": "string", "enum": ["auto", "escalate"] },
+              "source": { "type": ["string", "null"] },
+              "suggested_candidate": { "type": ["string", "null"], "description": "optional LLM suggestion for an unknown code; advisory only, never auto-applied" }
+            }
+          }
+        },
+        "uom_checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "check": { "type": "string" },
+              "expected": { "type": "integer" },
+              "actual": { "type": "integer" },
+              "result": { "type": "string", "enum": ["PASS", "FAIL"] }
+            }
+          }
+        }
+      }
+    },
+
+    "discrepancies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["discrepancy_id", "type", "qty", "value_usd"],
+        "properties": {
+          "discrepancy_id": { "type": "string" },
+          "type": { "type": "string", "enum": ["damaged", "short", "overage", "price"] },
+          "qty": { "type": "integer" },
+          "value_usd": { "type": "number", "description": "deterministic: qty * unit_price" },
+          "derived_from": { "type": "array", "items": { "type": "string" }, "description": "Layer 3. Evidence fields / computation this discrepancy fact was derived from." },
+
+          "classification": {
+            "type": "object",
+            "_meta": "LLM-produced (Layer 4). Never contains arithmetic.",
+            "properties": {
+              "cause": { "type": "string", "enum": ["in_transit_damage", "carrier_loss", "supplier_short_load", "data_error", "unknown"] },
+              "liable_party": { "type": "string", "enum": ["carrier", "supplier", "none", "unknown"] },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "rationale": { "type": "string" },
+              "evidence_cited": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+
+          "decision": {
+            "type": "object",
+            "_meta": "Layer 5. Policy-gated.",
+            "properties": {
+              "action": { "type": "string", "enum": ["draft_carrier_freight_claim", "draft_supplier_debit", "draft_carrier_loss_claim", "flag_for_correction"] },
+              "routing": { "type": "string", "enum": ["auto", "escalate"] },
+              "claim_packet_ref": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "reconciliation": {
+      "type": "object",
+      "_meta": "Layer 3. Deterministic closure proof. Records the OS&D balance and the independent checks that the books close. Contains no cause/liability — that is Layer 4.",
+      "properties": {
+        "ordered": { "type": "integer" },
+        "good": { "type": "integer" },
+        "damaged": { "type": "integer" },
+        "short": { "type": "integer" },
+        "accounted_total": { "type": "integer", "description": "good + damaged + short" },
+        "closes": { "type": "boolean", "description": "true only when both integrity checks pass" },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "check": { "type": "string" },
+              "expected": { "type": "integer" },
+              "actual": { "type": "integer" },
+              "result": { "type": "string", "enum": ["PASS", "FAIL"] }
+            }
+          }
+        }
+      }
+    },
+
+    "payable": {
+      "type": "object",
+      "_meta": "Layer 5. The clean position handed to finance (handoff is a stub in the MVP).",
+      "properties": {
+        "invoice_expected_usd": { "type": "number" },
+        "payable_good_usd": { "type": "number" },
+        "leakage_caught_usd": { "type": "number" }
+      }
+    },
+
+    "finance_handoff": {
+      "type": "object",
+      "_meta": "Layer 5. STUB — asserted, not a real integration. The structured position finance already holds when the supplier 810 invoice arrives, so no fresh AP exception is opened.",
+      "properties": {
+        "payable_good_usd": { "type": "number" },
+        "claims": { "type": "array", "items": { "type": "string" } },
+        "incoming_invoice_810_stub": {
+          "type": "object",
+          "properties": {
+            "qty": { "type": "integer" },
+            "value": { "type": "number" }
+          }
+        },
+        "status": { "type": "string" },
+        "note": { "type": "string" }
+      }
+    },
+
+    "audit": {
+      "type": "array",
+      "_meta": "Layer 6. Append-only log of every input, decision, confidence, and action.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ts": { "type": "string" },
+          "step": { "type": "string" },
+          "detail": { "type": "string" }
+        }
+      }
+    }
+  }
+}

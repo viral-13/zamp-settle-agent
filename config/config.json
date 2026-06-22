@@ -1,0 +1,58 @@
+{
+  "_meta": "Settle config. Synthetic. Tolerances, confidence routing, claim rules, and the seeded supplier mapping. Deterministic code reads thresholds from here; the LLM reads the rule descriptions as context, not as code.",
+
+  "unit_economics": {
+    "currency": "USD",
+    "unit": "case"
+  },
+
+  "confidence_routing": {
+    "auto_act_threshold": 0.80,
+    "escalate_below": 0.80,
+    "note": "Discrepancies classified at >= auto_act_threshold and within policy are acted on automatically; everything else is escalated to a human with the drafted action attached."
+  },
+
+  "policy_limits": {
+    "auto_claim_max_value_usd": 5000,
+    "note": "A claim/debit above this value is always escalated regardless of confidence (blast-radius control)."
+  },
+
+  "tolerances": {
+    "quantity_match_tolerance_pct": 0.0,
+    "note": "Any non-zero received-vs-ordered delta is a discrepancy. (Tolerance kept at 0 for the demo to make the case crisp; configurable per partner in production.)"
+  },
+
+  "liability_rules": {
+    "in_transit_damage": {
+      "liable_party": "carrier",
+      "trigger": "Damage corroborated by BOTH the carrier POD (damage noted at delivery) AND the GRN damage inspection.",
+      "evidence_strength": "high",
+      "action": "draft_carrier_freight_claim"
+    },
+    "supplier_short_load": {
+      "liable_party": "supplier",
+      "trigger": "Cases short at receipt WHILE the POD shows full pallet count delivered with no shortage noted (i.e., loss did not occur in carrier custody at pallet level) -> inference of under-filled pallets / short load by supplier.",
+      "evidence_strength": "low_inferred",
+      "action": "draft_supplier_debit"
+    },
+    "carrier_loss": {
+      "liable_party": "carrier",
+      "trigger": "POD itself notes a pallet/unit shortage at delivery (loss in carrier custody).",
+      "evidence_strength": "high",
+      "action": "draft_carrier_loss_claim"
+    },
+    "data_error": {
+      "liable_party": "none",
+      "trigger": "Discrepancy attributable to a document/keying error rather than physical goods.",
+      "evidence_strength": "varies",
+      "action": "flag_for_correction"
+    }
+  },
+
+  "supplier_mapping": {
+    "_meta": "Seeded cross-reference for the one supplier in the demo. In production this is a maintained, human-confirmed mapping table (the real engineering cost).",
+    "supplier_id": "SUPPLIER4471",
+    "item_code_map": { "SUP-4471": "SKU-A" },
+    "uom": { "cases_per_pallet": 25 }
+  }
+}

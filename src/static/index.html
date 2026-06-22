@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Settle — Receiving Dock Operations Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{
+  /* --- dock / freight steel palette (6 named values + status) --- */
+  --base:#12171B;        /* gunmetal deck            */
+  --panel:#1A222999;     /* raised steel panel       */
+  --panel-solid:#1A2229;
+  --panel-2:#212C34;     /* card                     */
+  --line:#33424C;        /* hairline weld            */
+  --ink:#D8E1E7;         /* cool light text          */
+  --dim:#8A98A1;         /* secondary                */
+  --brand:#4FA3C7;       /* wayfinding signage blue  */
+  /* functional dock-signal status, used sparingly */
+  --cleared:#46A86E;     /* bay signal GREEN  -> auto/cleared   */
+  --hold:#E3A93C;        /* hi-vis caution AMBER -> escalate    */
+  --alert:#CF4636;       /* dock STOP red    -> alert/error     */
+  --manila:#D9CFB6;      /* kraft manifest paper                */
+  --manila-ink:#262019;
+  --display:'Saira Condensed',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --radius:7px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:
+    linear-gradient(180deg,#10151900,#0e1316 90%),
+    repeating-linear-gradient(135deg,#ffffff03 0 12px,#00000000 12px 26px),
+    var(--base);
+  color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+a{color:var(--brand)}
+.mono{font-family:var(--mono);font-feature-settings:"tnum" 1}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px 80px}
+
+/* ---------- hazard top edge ---------- */
+.hazard{height:6px;background:repeating-linear-gradient(135deg,var(--hold) 0 16px,#1c1c1c 16px 32px);opacity:.85}
+
+/* ---------- header ---------- */
+header{padding:22px 0 16px;border-bottom:1px solid var(--line);margin-bottom:22px}
+.head-row{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.brand-block{display:flex;align-items:center;gap:14px}
+.stencil{
+  font-family:var(--display);font-weight:700;letter-spacing:.14em;font-size:34px;line-height:.9;
+  color:var(--ink);border:2px solid var(--brand);border-radius:4px;padding:6px 12px 4px;
+  text-transform:uppercase;position:relative;background:#0e141799;
+}
+.stencil small{display:block;font-family:var(--body);font-weight:500;letter-spacing:.22em;
+  font-size:9.5px;color:var(--brand);margin-top:3px}
+.sub{font-family:var(--display);font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  font-size:13px;color:var(--dim)}
+.ctx{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.chip{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:4px;
+  padding:5px 9px;background:#0f151899;color:var(--ink);white-space:nowrap}
+.chip b{color:var(--dim);font-weight:500;margin-right:6px}
+.run-zone{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+button.run{
+  font-family:var(--display);font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  font-size:16px;color:#08191f;background:var(--brand);border:none;border-radius:5px;
+  padding:13px 26px;cursor:pointer;box-shadow:inset 0 -3px 0 #0006;transition:transform .08s,filter .12s}
+button.run:hover{filter:brightness(1.08)}
+button.run:active{transform:translateY(1px)}
+button.run:disabled{background:var(--line);color:var(--dim);cursor:progress;box-shadow:none}
+button.run:focus-visible,.doccard:focus-visible,summary:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.runhint{font-size:11.5px;color:var(--dim);font-family:var(--mono)}
+
+/* ---------- section frame ---------- */
+section{margin:30px 0}
+.sec-h{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+.sec-h h2{font-family:var(--display);font-weight:600;letter-spacing:.12em;text-transform:uppercase;
+  font-size:15px;color:var(--dim);margin:0}
+.sec-h .rule{flex:1;height:1px;background:var(--line)}
+.tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  padding:3px 7px;border-radius:3px;border:1px solid currentColor;font-weight:600}
+
+/* ---------- pipeline rail ---------- */
+.rail{display:grid;grid-template-columns:repeat(6,1fr);gap:0;border:1px solid var(--line);
+  border-radius:var(--radius);overflow:hidden;background:var(--panel-solid)}
+.stage{position:relative;padding:14px 12px;text-align:center;border-right:1px solid var(--line);
+  transition:background .25s}
+.stage:last-child{border-right:none}
+.stage .num{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.stage .nm{font-family:var(--display);font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  font-size:15px;margin-top:3px;color:var(--dim);transition:color .25s}
+.stage .dot{width:8px;height:8px;border-radius:50%;background:var(--line);margin:8px auto 0;transition:background .25s,box-shadow .25s}
+.stage[data-on="active"]{background:#19303a}
+.stage[data-on="active"] .nm{color:var(--brand)}
+.stage[data-on="active"] .dot{background:var(--brand);box-shadow:0 0 0 4px #4fa3c733}
+.stage[data-on="done"] .nm{color:var(--ink)}
+.stage[data-on="done"] .dot{background:var(--cleared);box-shadow:0 0 0 3px #46a86e22}
+
+/* ---------- input doc cards ---------- */
+.docs{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.doccard{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--radius);
+  padding:0;overflow:hidden;cursor:pointer;text-align:left;color:inherit;font:inherit;display:block}
+.doccard .dc-h{padding:12px 13px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.doccard .dc-t{font-family:var(--display);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:14px}
+.doccard .dc-s{font-size:12px;color:var(--dim);margin-top:2px;font-family:var(--mono)}
+.doccard.pod{border-color:var(--hold);box-shadow:inset 0 0 0 1px #e3a93c44}
+.doccard .pin{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--hold);border:1px solid var(--hold);padding:2px 6px;border-radius:3px}
+.doccard .open{font-family:var(--mono);font-size:11px;color:var(--brand)}
+.doc-body{display:none;border-top:1px dashed var(--line);background:var(--manila);color:var(--manila-ink);
+  padding:12px 13px;max-height:330px;overflow:auto}
+.doc-body pre{margin:0;font-family:var(--mono);font-size:11.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.doccard.open-card .doc-body{display:block}
+
+/* ---------- HERO: liability judgment ---------- */
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.judge{background:linear-gradient(180deg,#1d2730,#172026);border:1px solid var(--line);
+  border-radius:9px;padding:18px 18px 20px;position:relative}
+.judge .jh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.osd{font-family:var(--display);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:13px;
+  padding:4px 10px;border-radius:4px}
+.osd.damaged{color:#0c1a13;background:var(--cleared)}
+.osd.short{color:#23170a;background:var(--hold)}
+.liable-row{display:flex;align-items:baseline;gap:10px;margin:8px 0 4px}
+.liable-row .lbl{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-family:var(--mono)}
+.liable{font-family:var(--display);font-weight:700;font-size:40px;line-height:.95;letter-spacing:.02em;text-transform:uppercase}
+.liable.carrier{color:var(--brand)}
+.liable.supplier{color:var(--hold)}
+.qtyline{font-family:var(--mono);font-size:12.5px;color:var(--dim);margin-bottom:14px}
+.qtyline b{color:var(--ink);font-weight:600}
+
+/* SIGNATURE — confidence meter vs the 0.80 threshold */
+.meter-wrap{margin:6px 0 16px;padding:13px 14px;border:1px solid var(--line);border-radius:7px;background:#0f161a}
+.meter-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px}
+.meter-top .m-l{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.meter-top .conf{font-family:var(--display);font-weight:700;font-size:26px;line-height:1}
+.track{position:relative;height:18px;border-radius:3px;background:#0a0f12;border:1px solid var(--line);overflow:visible}
+.fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:2px 0 0 2px;transition:width .9s cubic-bezier(.2,.8,.2,1)}
+.fill.auto{background:linear-gradient(90deg,#2f7a50,var(--cleared))}
+.fill.escalate{background:linear-gradient(90deg,#9a7320,var(--hold))}
+.thresh{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--ink)}
+.thresh::after{content:attr(data-label);position:absolute;top:-17px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:10px;color:var(--ink);white-space:nowrap;background:var(--base);padding:0 4px}
+.thresh .arrows{position:absolute;bottom:-19px;left:50%;transform:translateX(-50%);font-family:var(--mono);
+  font-size:9.5px;letter-spacing:.04em;color:var(--dim);white-space:nowrap}
+.verdict{display:inline-block;margin-top:14px;font-family:var(--mono);font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;padding:3px 8px;border-radius:3px;font-weight:600}
+.verdict.auto{color:var(--cleared);border:1px solid var(--cleared)}
+.verdict.escalate{color:var(--hold);border:1px solid var(--hold)}
+
+.rationale{font-size:13.5px;color:#c4ced5;margin:4px 0 14px}
+.cited-l{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);margin-bottom:7px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.evchip{font-family:var(--mono);font-size:11px;background:#10171b;border:1px solid var(--line);
+  border-left:2px solid var(--brand);border-radius:3px;padding:4px 8px;color:#bcc7ce}
+
+/* ---------- decisions ---------- */
+.dec-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.dec{border:1px solid var(--line);border-radius:var(--radius);padding:15px 16px;background:var(--panel-2);
+  border-left:4px solid var(--line)}
+.dec.auto{border-left-color:var(--cleared)}
+.dec.escalate{border-left-color:var(--hold)}
+.dec .stat{font-family:var(--display);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:18px}
+.dec.auto .stat{color:var(--cleared)}
+.dec.escalate .stat{color:var(--hold)}
+.dec .act{font-family:var(--mono);font-size:12px;color:var(--ink);margin-top:3px}
+.dec .meta{font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:9px;display:grid;gap:3px}
+.dec .meta b{color:var(--ink);font-weight:500}
+.held{margin-top:9px;font-family:var(--mono);font-size:11px;color:var(--hold);border-top:1px dashed var(--line);padding-top:8px}
+
+/* ---------- settlement ---------- */
+.settle{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;align-items:stretch}
+.ledger{border:1px solid var(--line);border-radius:9px;background:var(--panel-2);padding:18px 20px}
+.flow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.figcell .k{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+.figcell .v{font-family:var(--display);font-weight:700;font-size:38px;line-height:1;margin-top:3px}
+.v.good{color:var(--cleared)}.v.invoice{color:var(--ink)}.v.leak{color:var(--hold)}
+.arrow{font-family:var(--mono);color:var(--dim);font-size:22px}
+.leak-break{border:1px solid var(--line);border-radius:9px;background:var(--panel-2);padding:18px 20px;display:grid;gap:10px;align-content:start}
+.leak-row{display:flex;justify-content:space-between;align-items:center;font-family:var(--mono);font-size:13px}
+.leak-row .amt{font-weight:600}
+.leak-row .r-auto{color:var(--cleared)} .leak-row .r-esc{color:var(--hold)}
+.leak-total{border-top:1px solid var(--line);padding-top:9px;margin-top:2px}
+
+/* ---------- finance handoff stub ---------- */
+.handoff{border:1px dashed var(--brand);border-radius:9px;background:#13212899;padding:16px 18px}
+.handoff .hh{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.stubtag{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--alert);
+  border:1px solid var(--alert);border-radius:3px;padding:2px 7px;font-weight:600}
+.handoff .body{font-size:13.5px;color:#c4ced5}
+.handoff .body b{color:var(--ink)}
+.handoff .pre{font-family:var(--mono);font-size:12px;color:var(--dim);margin-top:8px}
+
+/* ---------- verification + audit ---------- */
+.verify{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.vstage{border:1px solid var(--line);border-radius:6px;padding:9px 10px;background:var(--panel-2)}
+.vstage .vn{font-family:var(--display);font-weight:600;letter-spacing:.06em;text-transform:uppercase;font-size:13px}
+.vstage .vr{font-family:var(--mono);font-size:11px;margin-top:4px}
+.vr.pass{color:var(--cleared)} .vr.fail{color:var(--alert)}
+details{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel-2);margin-top:10px}
+summary{cursor:pointer;padding:11px 14px;font-family:var(--display);font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;font-size:13px;color:var(--dim);list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸ ";color:var(--brand)}
+details[open] summary::before{content:"▾ "}
+.audit-list{padding:4px 14px 14px;display:grid;gap:0;max-height:340px;overflow:auto}
+.aud{display:grid;grid-template-columns:155px 150px 1fr;gap:10px;padding:7px 0;border-top:1px solid var(--line);
+  font-family:var(--mono);font-size:11.5px}
+.aud:first-child{border-top:none}
+.aud .ts{color:var(--dim)} .aud .st{color:var(--brand)} .aud .dt{color:#c4ced5}
+
+.empty{border:1px dashed var(--line);border-radius:9px;padding:40px;text-align:center;color:var(--dim)}
+.empty b{color:var(--ink);font-family:var(--display);letter-spacing:.06em;text-transform:uppercase}
+.banner{display:none;border-radius:6px;padding:10px 14px;font-family:var(--mono);font-size:12.5px;margin-bottom:12px}
+.banner.err{display:block;background:#2a1614;border:1px solid var(--alert);color:#f0c4bf}
+
+footer{margin-top:40px;border-top:1px solid var(--line);padding-top:14px;color:var(--dim);
+  font-family:var(--mono);font-size:11px}
+
+@media(max-width:880px){
+  .docs{grid-template-columns:1fr 1fr}.hero-grid,.dec-grid,.settle{grid-template-columns:1fr}
+  .rail{grid-template-columns:repeat(3,1fr)}.verify{grid-template-columns:repeat(3,1fr)}
+  .aud{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto}}
+
+/* ---------- Layer-6 state machine (behavior only; reuses theme tokens) ---------- */
+.btn-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+button.run.ghost{background:transparent;color:var(--brand);border:1px solid var(--brand);box-shadow:none}
+button.run.ghost:hover{filter:none;background:#14242c}
+button.run.ghost:disabled{background:transparent;border-color:var(--line);color:var(--dim)}
+button.reset{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  background:transparent;color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:9px 12px;cursor:pointer}
+button.reset:hover{color:var(--ink);border-color:var(--dim)}
+button.reset[hidden]{display:none}
+button.reset:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.runstatus{font-family:var(--mono);font-size:11.5px;color:var(--brand)}
+.runstatus[hidden]{display:none}
+.runstatus .secs{color:var(--ink)}
+
+/* rail dim while idle */
+body[data-state="idle"] .rail{opacity:.55}
+
+/* awaiting placeholder (idle + running) */
+.awaiting{border:1px dashed var(--line);border-radius:9px;padding:30px;text-align:center;color:var(--dim);
+  font-family:var(--mono);font-size:12.5px;margin:26px 0;letter-spacing:.02em}
+.awaiting b{color:var(--ink)}
+body[data-state="done"] #awaiting{display:none}
+
+/* result sections: hidden until DONE, revealed in sequence */
+.result-sec{display:none}
+.result-sec.show{display:block;animation:rise .45s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.result-sec.show{animation:none}}
+</style>
+</head>
+<body data-state="idle">
+<div class="hazard"></div>
+<div class="wrap">
+
+  <header>
+    <div class="head-row">
+      <div>
+        <div class="brand-block">
+          <div class="stencil">Settle<small>OS&amp;D · CLAIMS</small></div>
+          <div class="sub">Receiving Dock<br/>Operations Console</div>
+        </div>
+        <div class="ctx" id="ctx"><span class="chip">Press <b>Run Settle</b> to load the shipment</span></div>
+      </div>
+      <div class="run-zone">
+        <div class="btn-row">
+          <button class="run" id="runBtn" aria-label="Run Settle pipeline (live model calls)">Run Settle</button>
+          <button class="run ghost" id="replayBtn" aria-label="Replay the saved case (no model calls)">Replay (cached)</button>
+          <button class="reset" id="resetBtn" aria-label="Reset to idle" hidden>Reset</button>
+        </div>
+        <span class="runhint" id="runHint">Run = live model calls · Replay = saved case, no calls</span>
+        <span class="runstatus" id="runStatus" role="status" aria-live="polite" hidden></span>
+      </div>
+    </div>
+  </header>
+
+  <div class="banner err" id="errBanner"></div>
+
+  <!-- PIPELINE RAIL -->
+  <section aria-label="Pipeline">
+    <div class="sec-h"><h2>Pipeline</h2><span class="rule"></span></div>
+    <div class="rail" id="rail">
+      <div class="stage" data-stage="Ingest"><div class="num">01</div><div class="nm">Ingest</div><div class="dot"></div></div>
+      <div class="stage" data-stage="Resolve"><div class="num">02</div><div class="nm">Resolve</div><div class="dot"></div></div>
+      <div class="stage" data-stage="Reconcile"><div class="num">03</div><div class="nm">Reconcile</div><div class="dot"></div></div>
+      <div class="stage" data-stage="Classify"><div class="num">04</div><div class="nm">Classify</div><div class="dot"></div></div>
+      <div class="stage" data-stage="Decide"><div class="num">05</div><div class="nm">Decide</div><div class="dot"></div></div>
+      <div class="stage" data-stage="Handoff"><div class="num">06</div><div class="nm">Handoff</div><div class="dot"></div></div>
+    </div>
+  </section>
+
+  <!-- INPUTS -->
+  <section aria-label="Source documents">
+    <div class="sec-h"><h2>Inbound Documents</h2><span class="rule"></span></div>
+    <div class="docs">
+      <button class="doccard" data-doc="po"><div class="dc-h"><div><div class="dc-t">PO 850</div><div class="dc-s">purchase order</div></div><span class="open">expand</span></div><div class="doc-body"><pre></pre></div></button>
+      <button class="doccard" data-doc="asn"><div class="dc-h"><div><div class="dc-t">ASN 856</div><div class="dc-s">raw X12 manifest</div></div><span class="open">expand</span></div><div class="doc-body"><pre></pre></div></button>
+      <button class="doccard pod" data-doc="pod"><div class="dc-h"><div><div class="dc-t">POD</div><div class="dc-s">proof of delivery</div></div><span class="pin">annotated</span></div><div class="doc-body"><pre></pre></div></button>
+      <button class="doccard" data-doc="grn"><div class="dc-h"><div><div class="dc-t">GRN</div><div class="dc-s">goods receipt</div></div><span class="open">expand</span></div><div class="doc-body"><pre></pre></div></button>
+    </div>
+  </section>
+
+  <!-- AWAITING placeholder (visible in IDLE/RUNNING) -->
+  <div id="awaiting" class="awaiting">Awaiting run — press <b>Run Settle</b> (live model calls) or <b>Replay (cached)</b> to settle this shipment.</div>
+
+  <!-- HERO: LIABILITY -->
+  <section class="result-sec" id="secLiability" aria-label="Liability judgment">
+    <div class="sec-h"><h2>Liability Judgment</h2><span class="tag" style="color:var(--brand)">hero</span><span class="rule"></span></div>
+    <div id="hero" class="hero-grid"></div>
+  </section>
+
+  <!-- DECISIONS -->
+  <section class="result-sec" id="secDecisions" aria-label="Decisions">
+    <div class="sec-h"><h2>Decisions</h2><span class="rule"></span></div>
+    <div id="decisions" class="dec-grid"></div>
+  </section>
+
+  <!-- SETTLEMENT -->
+  <section class="result-sec" id="secSettle" aria-label="Settlement">
+    <div class="sec-h"><h2>Settlement Position</h2><span class="rule"></span></div>
+    <div id="settle" class="settle"></div>
+  </section>
+
+  <!-- HANDOFF -->
+  <section class="result-sec" id="secHandoff" aria-label="Finance handoff">
+    <div class="sec-h"><h2>Finance Handoff</h2><span class="rule"></span></div>
+    <div id="handoff"></div>
+  </section>
+
+  <!-- VERIFICATION -->
+  <section class="result-sec" id="verifySec" aria-label="Verification">
+    <div class="sec-h"><h2>Pipeline Verification</h2><span class="rule"></span></div>
+    <div id="verify" class="verify"></div>
+  </section>
+
+  <!-- AUDIT -->
+  <section class="result-sec" id="secAudit" aria-label="Audit trail">
+    <div class="sec-h"><h2>Audit Trail</h2><span class="rule"></span></div>
+    <details id="auditWrap"><summary>Append-only log</summary><div class="audit-list" id="audit"></div></details>
+  </section>
+
+  <footer>Settle · figures rendered strictly from engine output (out/case_layer5.json). Finance handoff is a labeled STUB.</footer>
+</div>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const reduceMotion=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+const usd=n=>(n==null?'—':'$'+Number(n).toLocaleString('en-US'));
+const esc=s=>String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+let THRESH=0.80;
+
+/* ---- source document expand (via /doc) ---- */
+$$('.doccard').forEach(card=>{
+  card.addEventListener('click',async()=>{
+    const pre=$('.doc-body pre',card), name=card.dataset.doc;
+    if(!card.classList.contains('open-card') && !pre.textContent){
+      pre.textContent='loading…';
+      try{const r=await fetch('/doc/'+name);pre.textContent=r.ok?await r.text():('Could not load: '+await r.text());}
+      catch(e){pre.textContent='Could not load document.';}
+    }
+    card.classList.toggle('open-card');
+    $('.open',card)&&($('.open',card).textContent=card.classList.contains('open-card')?'collapse':'expand');
+  });
+});
+
+/* ---- rail orchestration ---- */
+function resetRail(){$$('.stage',$('#rail')).forEach(s=>s.removeAttribute('data-on'));}
+function railDoneAll(){$$('.stage',$('#rail')).forEach(s=>s.setAttribute('data-on','done'));}
+function playRail(){
+  return new Promise(res=>{
+    const stages=$$('.stage',$('#rail'));
+    if(reduceMotion){railDoneAll();return res();}
+    let i=0;
+    const step=()=>{
+      if(i>0)stages[i-1].setAttribute('data-on','done');
+      if(i<stages.length){stages[i].setAttribute('data-on','active');i++;setTimeout(step,300);}
+      else res();
+    };
+    step();
+  });
+}
+
+/* ---- header context ---- */
+function renderContext(c){
+  if(!c){return;}
+  $('#ctx').innerHTML=[
+    ['PO',c.po_number],['SKU',c.sku],['Supplier',c.supplier_id],
+    ['Carrier',c.carrier_scac],['Invoice',usd(c.invoice_expected_usd)]
+  ].filter(x=>x[1]!=null).map(x=>`<span class="chip"><b>${x[0]}</b>${esc(x[1])}</span>`).join('');
+}
+
+/* ---- SIGNATURE confidence meter ---- */
+function meter(conf,routing){
+  const pct=Math.max(0,Math.min(1,conf))*100, tp=THRESH*100;
+  const cls=routing==='auto'?'auto':'escalate';
+  return `<div class="meter-wrap">
+    <div class="meter-top"><span class="m-l">Classifier confidence</span>
+      <span class="conf mono" style="color:var(--${routing==='auto'?'cleared':'hold'})">${conf.toFixed(2)}</span></div>
+    <div class="track">
+      <div class="fill ${cls}" data-w="${pct}"></div>
+      <div class="thresh" style="left:${tp}%" data-label="${THRESH.toFixed(2)} threshold">
+        <span class="arrows">escalate ◂ ▸ auto</span></div>
+    </div>
+    <span class="verdict ${cls}">${routing==='auto'?'≥ threshold · auto-file':'below threshold · escalate'}</span>
+  </div>`;
+}
+
+function renderHero(disc){
+  const order={damaged:0,short:1};
+  const cards=[...disc].sort((a,b)=>(order[a.type]??9)-(order[b.type]??9)).map(d=>{
+    const cl=d.classification, dec=d.decision||{}, party=cl.liable_party;
+    const chips=(cl.evidence_cited||[]).map(e=>`<span class="evchip">${esc(e)}</span>`).join('');
+    return `<div class="judge">
+      <div class="jh"><span class="osd ${d.type}">${d.type}</span>
+        <span class="qtyline mono"><b>${d.qty}</b> cases · <b>${usd(d.value_usd)}</b></span></div>
+      <div class="liable-row"><span class="lbl">liable party</span></div>
+      <div class="liable ${party}">${esc(party)}</div>
+      <div class="qtyline mono">cause · ${esc(cl.cause)}</div>
+      ${meter(cl.confidence,dec.routing)}
+      <p class="rationale">${esc(cl.rationale)}</p>
+      <div class="cited-l">evidence cited</div>
+      <div class="chips">${chips}</div>
+    </div>`;
+  }).join('');
+  $('#hero').innerHTML=cards;
+  // animate meter fills after paint
+  requestAnimationFrame(()=>$$('.fill').forEach(f=>{f.style.width=(reduceMotion?f.dataset.w:f.dataset.w)+'%';}));
+}
+
+function renderDecisions(disc,claims){
+  const byRef=Object.fromEntries(claims.map(c=>[c.claim_ref,c]));
+  $('#decisions').innerHTML=disc.map(d=>{
+    const dec=d.decision||{}, pk=byRef[dec.claim_packet_ref]||{}, auto=dec.routing==='auto';
+    return `<div class="dec ${auto?'auto':'escalate'}">
+      <div class="stat">${auto?'Auto-filed':'Escalated'}</div>
+      <div class="act">${esc(dec.action||'')}</div>
+      <div class="meta">
+        <span>ref · <b>${esc(dec.claim_packet_ref||'')}</b></span>
+        <span>${esc((pk.counterparty||{}).role||'')} · <b>${esc((pk.counterparty||{}).id||'')}</b></span>
+        <span>amount · <b>${usd(pk.value_usd)}</b></span>
+      </div>
+      ${auto?'':'<div class="held">held for human review — drafted, not sent</div>'}
+    </div>`;
+  }).join('');
+}
+
+function renderSettle(pay,claims){
+  const find=r=>claims.find(c=>c.routing===r)||{};
+  const carrier=find('auto'),supplier=find('escalate');
+  $('#settle').innerHTML=`
+    <div class="ledger"><div class="flow">
+      <div class="figcell"><div class="k">Invoice expected</div><div class="v invoice mono">${usd(pay.invoice_expected_usd)}</div></div>
+      <div class="arrow">→</div>
+      <div class="figcell"><div class="k">Payable (good)</div><div class="v good mono">${usd(pay.payable_good_usd)}</div></div>
+      <div class="arrow">·</div>
+      <div class="figcell"><div class="k">Leakage caught</div><div class="v leak mono">${usd(pay.leakage_caught_usd)}</div></div>
+    </div></div>
+    <div class="leak-break">
+      <div class="leak-row"><span><span class="r-auto">${esc(carrier.counterparty?.role||'carrier')}</span> claim · auto</span><span class="amt r-auto">${usd(carrier.value_usd)}</span></div>
+      <div class="leak-row"><span><span class="r-esc">${esc(supplier.counterparty?.role||'supplier')}</span> debit · escalate</span><span class="amt r-esc">${usd(supplier.value_usd)}</span></div>
+      <div class="leak-row leak-total"><span>leakage caught &amp; assigned</span><span class="amt leak">${usd(pay.leakage_caught_usd)}</span></div>
+    </div>`;
+}
+
+function renderHandoff(h,pay){
+  if(!h){$('#handoff').innerHTML='';return;}
+  $('#handoff').innerHTML=`<div class="handoff">
+    <div class="hh"><span class="stubtag">stub</span><span class="mono" style="color:var(--dim);font-size:12px">${esc(h.note||'')}</span></div>
+    <div class="body">When the supplier's <b>810 invoice</b> (qty <b class="mono">${h.incoming_invoice_810_stub.qty}</b>, <b class="mono">${usd(h.incoming_invoice_810_stub.value)}</b>) arrives, finance already holds the settled <b class="mono">${usd(h.payable_good_usd)}</b> position — status <b>${esc(h.status)}</b>, so it opens <b>no fresh AP exception</b>.</div>
+    <div class="pre">claims pre-attached · ${(h.claims||[]).map(esc).join(' · ')}</div>
+  </div>`;
+}
+
+function renderVerify(v){
+  const has=!!(v&&v.length);
+  $('#verify').innerHTML=has?v.map(s=>{
+    const fails=(s.rows||[]).filter(r=>r.result==='FAIL').length;
+    const ok=s.passed&&!fails;
+    return `<div class="vstage"><div class="vn">${esc(s.stage)}</div>
+      <div class="vr ${ok?'pass':'fail'}">${ok?'PASS':'FAIL'}${(s.rows&&s.rows.length)?` · ${s.rows.length} checks`:''}</div></div>`;
+  }).join(''):'';
+  return has;
+}
+
+function renderAudit(a){
+  $('#audit').innerHTML=(a||[]).map(e=>`<div class="aud">
+    <span class="ts">${esc((e.ts||'').replace('T',' ').slice(0,19))}</span>
+    <span class="st">${esc(e.step||'')}</span><span class="dt">${esc(e.detail||'')}</span></div>`).join('')
+    ||'<div class="aud"><span class="dt">No audit entries.</span></div>';
+}
+
+/* render the DONE content strictly from the triggering response (run OR replay) */
+function render(p){
+  if(p.threshold!=null)THRESH=p.threshold;
+  renderContext(p.context);
+  renderHero(p.case.discrepancies);
+  renderDecisions(p.case.discrepancies,p.claims);
+  renderSettle(p.case.payable||{},p.claims);
+  renderHandoff(p.case.finance_handoff,p.case.payable);
+  renderVerify(p.verification);
+  renderAudit(p.audit);
+}
+
+/* =====================================================================
+   IDLE -> RUNNING -> DONE state machine (Layer 6 behavior patch).
+   Run = POST /run (live model calls). Replay = GET /case (no calls).
+   Every figure still comes from the backend payload; nothing hardcoded.
+   ===================================================================== */
+const RESULT_SECS=['secLiability','secDecisions','secSettle','secHandoff','verifySec','secAudit'];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+let caseAvailable=false;     // enables Replay
+let railTimer=null, elapsedTimer=null;
+
+function setState(s){document.body.dataset.state=s;}
+function hideResults(){RESULT_SECS.forEach(id=>{const el=$('#'+id);if(el)el.classList.remove('show');});}
+
+/* reveal result sections one-by-one from the active response */
+function revealSequence(hasVerify){
+  const order=RESULT_SECS.filter(id=>id!=='verifySec'||hasVerify);
+  const step=reduceMotion?0:170;
+  order.forEach((id,i)=>setTimeout(()=>{const el=$('#'+id);if(el)el.classList.add('show');},i*step));
+}
+
+/* rail "sweep": an active marker marches across the six stages while we wait.
+   NOTE: this animation only APPROXIMATES the stages — the real Layers 1–5 run
+   server-side during the awaited POST /run (no streaming). It settles to done
+   from the response. */
+function startRailSweep(){
+  resetRail();
+  if(reduceMotion)return ()=>{};
+  const stages=$$('.stage',$('#rail'));
+  const passed=new Array(stages.length).fill(false);
+  let pos=0;
+  const tick=()=>{
+    stages.forEach((s,k)=>s.setAttribute('data-on', k===pos?'active':(passed[k]?'done':'')));
+    passed[pos]=true; pos=(pos+1)%stages.length;
+  };
+  tick(); railTimer=setInterval(tick,330);
+  return ()=>{clearInterval(railTimer);railTimer=null;};
+}
+
+/* elapsed-seconds counter + mode line */
+function startElapsed(mode){
+  const el=$('#runStatus');el.hidden=false;
+  const modeLine=mode==='run'?'live model calls':'cached replay — no model calls';
+  const t0=performance.now();
+  const tick=()=>{el.innerHTML=`settling… <span class="secs">${((performance.now()-t0)/1000).toFixed(1)}s</span> · ${modeLine}`;};
+  tick(); elapsedTimer=setInterval(tick,100);
+  return ()=>{clearInterval(elapsedTimer);elapsedTimer=null;el.hidden=true;el.textContent='';};
+}
+
+function setBusy(busy,mode){
+  $('#runBtn').disabled=busy||false;
+  $('#replayBtn').disabled=busy||!caseAvailable;
+  $('#runBtn').textContent=(busy&&mode==='run')?'Settling…':'Run Settle';
+  $('#replayBtn').textContent=(busy&&mode==='replay')?'Settling…':'Replay (cached)';
+}
+
+async function trigger(mode){
+  setState('running');
+  $('#resetBtn').hidden=true;
+  $('#errBanner').className='banner';
+  hideResults();
+  setBusy(true,mode);
+  const stopRail=startRailSweep();
+  const stopElapsed=startElapsed(mode);
+  try{
+    let p;
+    if(mode==='run'){
+      const r=await fetch('/run',{method:'POST'});           // live model calls
+      if(!r.ok)throw new Error((await r.json()).detail||'Pipeline failed.');
+      p=await r.json();
+    }else{
+      const r=await fetch('/case');                          // saved case, NO model calls
+      const j=await r.json();
+      if(!j||j.available===false)throw new Error('No saved case to replay yet — Run Settle once first.');
+      p=j;
+      if(!reduceMotion)await sleep(1500);                    // let the rail read on screen (replay is instant)
+    }
+    stopRail();stopElapsed();
+    railDoneAll();
+    render(p);                                               // DONE renders from THIS response
+    setState('done');
+    revealSequence(!!(p.verification&&p.verification.length));
+    caseAvailable=true;
+    $('#resetBtn').hidden=false;
+  }catch(e){
+    stopRail();stopElapsed();resetRail();
+    const b=$('#errBanner');b.className='banner err';
+    b.textContent=(mode==='run'?'Run failed: ':'Replay failed: ')+e.message
+      +(mode==='run'?' — check the server log and that ANTHROPIC_API_KEY is set in .env.':'');
+    setState('idle');
+  }finally{
+    setBusy(false,mode);
+  }
+}
+
+function reset(){
+  setState('idle');
+  hideResults();
+  resetRail();
+  $('#resetBtn').hidden=true;
+  $('#runStatus').hidden=true;
+  $('#errBanner').className='banner';
+  setBusy(false,null);
+  window.scrollTo({top:0,behavior:reduceMotion?'auto':'smooth'});
+}
+
+/* ---- initial load: IDLE. Pull header context only; enable Replay if a case exists. ---- */
+async function init(){
+  setState('idle');hideResults();resetRail();
+  try{
+    const r=await fetch('/case');
+    const j=await r.json();
+    if(j&&j.available!==false){
+      caseAvailable=true;
+      if(j.threshold!=null)THRESH=j.threshold;
+      renderContext(j.context);                             // header/context only — no results
+    }
+  }catch(e){/* leave placeholder context */}
+  setBusy(false,null);
+}
+
+$('#runBtn').addEventListener('click',()=>trigger('run'));
+$('#replayBtn').addEventListener('click',()=>trigger('replay'));
+$('#resetBtn').addEventListener('click',reset);
+init();
+</script>
+</body>
+</html>

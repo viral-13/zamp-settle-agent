@@ -1,0 +1,20 @@
+{
+  "_meta": "Synthetic. Goods Receipt Note exported from the WMS at the DC. Structured -> parsed deterministically. This is the receiving ground truth on the goods side.",
+  "doc_type": "GRN_WMS",
+  "grn_number": "GRN445566",
+  "po_number": "PO500123",
+  "asn_number": "SHIP000123",
+  "received_date": "2025-09-09",
+  "receiver": "DCNORTH / Dock 4",
+  "lines": [
+    {
+      "line_no": 1,
+      "buyer_sku": "SKU-A",
+      "received_good": 460,
+      "received_damaged": 25,
+      "received_short": 15,
+      "uom": "case",
+      "inspection_notes": "25 cases water/crush damage concentrated on 2 pallets, consistent with the pallets flagged on the delivery receipt. 15 cases unaccounted for: pallet count matched the BOL at delivery, cartons appear short within pallets."
+    }
+  ]
+}

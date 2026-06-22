@@ -1,0 +1,19 @@
+{
+  "_meta": "Synthetic. Parsed representation of an EDI 856 (Advance Ship Notice). Note the supplier item code SUP-4471 (not our SKU-A) -> entity resolution needed in Layer 2.",
+  "doc_type": "EDI_856_ASN",
+  "asn_number": "SHIP000123",
+  "po_number": "PO500123",
+  "supplier_id": "SUPPLIER4471",
+  "ship_date": "2025-09-05",
+  "carrier_scac": "CARRIERX",
+  "bol_number": "BOL778899",
+  "pallets_shipped": 20,
+  "lines": [
+    {
+      "line_no": 1,
+      "supplier_item_code": "SUP-4471",
+      "shipped_qty": 500,
+      "uom": "case"
+    }
+  ]
+}

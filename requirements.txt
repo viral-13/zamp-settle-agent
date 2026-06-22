@@ -1,0 +1,9 @@
+# Settle MVP — dependencies (grows per layer)
+# Layer 1+ : LLM calls + PDF rendering for the POD
+anthropic>=0.40.0
+reportlab>=4.0.0      # render the POD text into the PDF the IDP reads
+python-dotenv>=1.0.0  # load ANTHROPIC_API_KEY from the repo-root .env
+# google-generativeai>=0.8.0   # uncomment if using Gemini for any step
+# Layer 6 — demo surface (Receiving Dock Operations Console)
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0

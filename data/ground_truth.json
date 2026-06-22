@@ -1,0 +1,48 @@
+{
+  "_meta": "DEV / EVAL REFERENCE ONLY. Not read by the agent at runtime. This is the answer Settle must derive on its own; used to check Layers 3-5 and as the eval harness target.",
+
+  "po_value_usd": 20000,
+  "unit_price_usd": 40.00,
+
+  "expected_evidence": {
+    "ordered_qty": 500,
+    "shipped_qty_per_asn": 500,
+    "pallets_delivered_per_pod": 20,
+    "pod_shortage_noted": false,
+    "pod_damage_noted": true,
+    "received_good": 460,
+    "received_damaged": 25,
+    "received_short": 15
+  },
+
+  "expected_discrepancies": [
+    {
+      "type": "damaged",
+      "qty": 25,
+      "value_usd": 1000,
+      "cause": "in_transit_damage",
+      "liable_party": "carrier",
+      "confidence_band": "high",
+      "evidence_cited": ["POD: 2 pallets damaged at delivery", "GRN: 25 cases damage on inspection"],
+      "action": "draft_carrier_freight_claim",
+      "routing": "auto"
+    },
+    {
+      "type": "short",
+      "qty": 15,
+      "value_usd": 600,
+      "cause": "supplier_short_load",
+      "liable_party": "supplier",
+      "confidence_band": "low",
+      "evidence_cited": ["ASN: 500 shipped", "POD: 20/20 pallets delivered, no shortage noted", "GRN: 15 cases short"],
+      "action": "draft_supplier_debit",
+      "routing": "escalate"
+    }
+  ],
+
+  "expected_payable": {
+    "invoice_expected_usd": 20000,
+    "payable_good_usd": 18400,
+    "leakage_caught_usd": 1600
+  }
+}

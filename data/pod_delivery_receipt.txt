@@ -1,0 +1,28 @@
+================================================================
+              CARRIERX  —  PROOF OF DELIVERY
+================================================================
+BOL #: BOL778899                    Pro #: CX-4471-0905
+Ship From: SUPPLIER4471                Date Shipped: 09/05/2025
+Deliver To: DCNORTH — Dock 4           Date Delivered: 09/09/2025
+
+----------------------------------------------------------------
+PALLETS TENDERED:        20
+PALLETS DELIVERED:       20
+SHORTAGE AT DELIVERY:    NONE
+----------------------------------------------------------------
+
+Receiving notes (handwritten):
+   "2 pallets visibly crushed / water-stained on arrival.
+    Accepted SUBJECT TO INSPECTION. Pallet count OK — all 20
+    on the truck. Noted damage to driver."
+                                          — R. Mehta, Dock 4
+
+Driver signature: ___J. Alvarez___        Time: 10:42
+
+================================================================
+NOTE: This document is intentionally semi-structured / annotated.
+In Layer 1 it is rendered to PDF and read by the LLM-IDP step,
+which must extract: pallets_delivered=20, pod_shortage_noted=false,
+pod_damage_noted=true, and the damage detail text. The deterministic
+EDI/GRN parsers do NOT touch this file.
+================================================================
