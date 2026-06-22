@@ -3,7 +3,7 @@
 
 A working MVP for the Zamp AI PM application. On a single inbound shipment, **Settle** reconciles what was ordered vs. shipped vs. received, decides **who is liable** for each discrepancy (carrier vs. supplier), drafts the claim where it's confident, escalates where it isn't, and hands finance a clean payable position — all with its reasoning and confidence on screen.
 
-See `Zamp_OSD_Agent_PRD.md` for the full strategy and pitch. This repo is the build.
+This repo is the build.
 
 ---
 
@@ -29,11 +29,17 @@ PO: **500 cases of SKU-A @ $40 = $20,000.** At receiving: **460 good, 25 damaged
 - **LLM vs. deterministic split:** the LLM does extraction, liability classification, action selection, and rationale. **Deterministic code does all arithmetic, tolerances, matching, actions, and the audit log.** The LLM never computes the numbers.
 - **BUILT vs. ASSERTED:** real EDI/carrier/ERP integrations, async arrival, multi-partner mapping, and the live finance handoff are **asserted in the pitch, not built**. The finance handoff is shown as a stub.
 
-## Run (will fill in as layers land)
+## Run
 ```
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-# Layer 1+ entrypoints added as we build
+cp .env.example .env        # then set ANTHROPIC_API_KEY in .env
+
+# Run a layer end-to-end (each writes out/case_layerN.json and prints a PASS/FAIL table)
+python src/run_layer1.py    # also run_layer2 .. run_layer5
+
+# Live "dock operations" console at http://localhost:8000
+uvicorn demo_app:app --app-dir src --reload
 ```
 
 ## Layout
